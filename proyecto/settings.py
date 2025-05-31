@@ -11,13 +11,24 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# URL base para archivos estáticos
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'proyecto', 'static')
+
+# Ubicación de archivos estáticos en producción (para `collectstatic`)
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")  # Cambia 'proyecto/static' por 'staticfiles'
+
+# Directorios donde Django buscará archivos estáticos en desarrollo
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),  # Aquí deben estar tus imágenes y otros recursos
+]
 
 
 # Quick-start development settings - unsuitable for production
@@ -83,14 +94,15 @@ WSGI_APPLICATION = 'proyecto.wsgi.application'
 #        'NAME': BASE_DIR / 'db.sqlite3',
 #   }
 #}
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'django',
-        'USER': 'django',
-        'PASSWORD': 'django',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'ENGINE': os.getenv('DB_ENGINE'),
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
     }
 }
 

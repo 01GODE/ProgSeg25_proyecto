@@ -1,0 +1,102 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración de Servidores</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .header {
+            padding: 20px;
+            text-align: left;
+        }
+        .logout {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            margin-top: 20px;
+            margin-right: 20px;
+            padding: 20px;
+        }
+        .logout a:hover {
+            color: red !important;
+        }
+        .options {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 120px;
+            margin-bottom: 100px;
+        }
+        .options a {
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .option {
+            background-color: white;
+            color: black;
+            width: 300px;
+            height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            padding: 10px;
+        }
+        .option img {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+        @media screen and (max-width: 768px) {
+        .options {
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+        margin-bottom: 100px;
+        }
+}
+
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Administración de Servidores</h1>
+        <p>Bienvenido {{ usuario }}</p>
+    </div>
+    <div class="logout">
+    <a href="{% url 'logout' %}" style="color: white;">Cerrar Sesión</a>
+</div>
+    <div class="options">
+        <a href="estado.html" class="option">
+            <img src="{% static 'img/estado.png' %}" alt="Ver Estado">
+            <p><b>Ver Estado</b></p>
+        </a>
+
+        <a href="administrar.html" class="option">
+            <img src="{% static 'img/administrar.png' %}" alt="Administrar Servicios">
+            <p><b>Administrar Servicios</b></p>
+        </a>
+
+        <a href="levantar.html" class="option">
+            <img src="{% static 'img/levantar.png' %}" alt="Levantar Servicio">
+            <p><b>Levantar Servicio</b></p>
+        </a>
+
+        <a href="registro.html" class="option">
+            <img src="{% static 'img/registrar.png' %}" alt="Registrar Servidor">
+            <p><b>Registrar Servidor</b></p>
+        </a>
+    </div>
+</body>
+</html>

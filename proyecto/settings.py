@@ -43,6 +43,9 @@ DEBUG = True
 #ALLOWED_HOSTS = []
 ALLOWED_HOSTS = ['*']
 
+#login por defecto
+LOGIN_URL = '/'
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -52,6 +55,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'proyecto',
 ]
 
 MIDDLEWARE = [
@@ -106,6 +110,11 @@ DATABASES = {
     }
 }
 
+# sesiones
+SESSION_ENGINE = "django.contrib.sessions.backends.db"  # Guardar sesiones en la BD
+SESSION_COOKIE_AGE = 3600  # Expiración en segundos (1 hora)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Cerrar al cerrar el navegador
+SESSION_SAVE_EVERY_REQUEST = True  # Guardar sesión en cada request
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators

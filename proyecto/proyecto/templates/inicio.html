@@ -78,22 +78,22 @@
     <a href="{% url 'logout' %}" style="color: white;">Cerrar Sesión</a>
 </div>
     <div class="options">
-        <a href="estado.html" class="option">
+        <a href="{% url 'estado' %}" class="option">
             <img src="{% static 'img/estado.png' %}" alt="Ver Estado">
             <p><b>Ver Estado</b></p>
         </a>
 
-        <a href="administrar.html" class="option">
+        <a href="{% url 'administrar' %}" class="option">
             <img src="{% static 'img/administrar.png' %}" alt="Administrar Servicios">
             <p><b>Administrar Servicios</b></p>
         </a>
 
-        <a href="levantar.html" class="option">
+        <a href="{% url 'levantar' %}" class="option">
             <img src="{% static 'img/levantar.png' %}" alt="Levantar Servicio">
             <p><b>Levantar Servicio</b></p>
         </a>
 
-        <a href="registro.html" class="option">
+        <a href="{% url 'registro' %}" class="option">
             <img src="{% static 'img/registrar.png' %}" alt="Registrar Servidor">
             <p><b>Registrar Servidor</b></p>
         </a>

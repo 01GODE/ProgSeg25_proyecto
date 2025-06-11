@@ -141,4 +141,11 @@ button{
 </form>
 
 </body>
+<script>
+    window.addEventListener("pageshow", function (event) {
+        if (event.persisted) {
+            location.reload(); // Fuerza la recarga si la página viene del caché
+        }
+    });
+</script>
 </html>

@@ -7,7 +7,7 @@ load_dotenv()
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 
 def generate_otp():
-    """Genera un código OTP de 4 dígitos"""
+    #Genera un código OTP de 4 dígitos
     return str(random.randint(1000, 9999))
 
 def send_otp_email(email, otp):

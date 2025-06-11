@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<link rel="preconnect" href="https://fonts.gstatic.com">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
     <!--Stylesheet-->
@@ -48,7 +51,7 @@ body{
     bottom: -80px;
 }
 form{
-    height: 600px;
+    height: 400px;
     width: 400px;
     background-color: rgba(255,255,255,0.13);
     position: absolute;
@@ -127,82 +130,25 @@ button{
         <div class="shape"></div>
     </div>
 
-    <form method="POST" action="{% url 'verificacion' %}" id="verification-form">
+    <form method="POST" action="{% url 'verificacion' %}">
         {% csrf_token %}
-        <h2>Verificacion</h2>
+        <h2>Verificación</h2>
         <h3>Administración de Servidores</h3>
 
-        <!-- Paso 1: Ingresar correo -->
-        <label for="email">Ingresa tu correo</label>
-        <input type="email" name="email" id="email" required placeholder="correo@correo.com" pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Ingrese un correo válido">
-        <button type="button" id="send-email-btn">Enviar Código OTP</button>
-
-        <p id="email-status" class="hidden" style="text-align: center;"> Código enviado. Revisa tu correo.</p>
-
-        <!-- Paso 2: Ingresar código OTP -->
-        <div id="otp-section" class="hidden">
-            <label for="otp">Ingresa el código OTP</label>
-            <input type="text" name="otp" id="otp" required maxlength="4" pattern="\d{4}" title="Ingrese un código de 4 dígitos">
-            <button type="submit" id="verify-otp-btn">Verificar Código</button>
-        </div>
+        <label for="otp">Ingresa el código enviado a tu correo</label>
+        <input type="text" name="otp" id="otp" required maxlength="4" pattern="\d{4}" placeholder="Ingrese un código de 4 dígitos">
+        <button type="submit">Verificar Código</button>
 
         {% if error %}
         <p style="color: red;">{{ error }}</p>
         {% endif %}
     </form>
-
-    <script>
-        document.getElementById("send-email-btn").addEventListener("click", function () {
-            let email = document.getElementById("email").value;
-
-            if (email.trim() === "") {
-                alert("Debes ingresar un correo válido.");
-                return;
-            }
-
-            fetch("{% url 'verificacion' %}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value
-                },
-                body: new URLSearchParams({ email: email })
-            })
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById("send-email-btn").classList.add("disabled");
-                document.getElementById("send-email-btn").disabled = true;
-                document.getElementById("email").readOnly = true;
-                document.getElementById("email-status").classList.remove("hidden");
-                document.getElementById("otp-section").classList.remove("hidden");
-            })
-            .catch(error => console.error("Error:", error));
-        });
-
-        document.getElementById("verification-form").addEventListener("submit", function (event) {
-            event.preventDefault();
-
-            let otpCode = document.getElementById("otp").value;
-
-            if (otpCode.trim() === "") {
-                alert("Debes ingresar un código válido.");
-                return;
-            }
-
-            fetch("{% url 'verificacion' %}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value
-                },
-                body: new URLSearchParams({ otp: otpCode })
-            })
-            .then(response => response.text())
-            .then(data => {
-                window.location.href = "{% url 'inicio' %}";
-            })
-            .catch(error => console.error("Error:", error));
-        });
-    </script>
 </body>
+<script>
+    window.addEventListener("pageshow", function (event) {
+        if (event.persisted) {
+            location.reload();
+        }
+    });
+</script>
 </html>

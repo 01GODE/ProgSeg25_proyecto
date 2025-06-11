@@ -30,6 +30,7 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),  # Aquí deben estar tus imágenes y otros recursos
 ]
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/

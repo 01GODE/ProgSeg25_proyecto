@@ -1,0 +1,14 @@
+× nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/lib/systemd/system/nginx.service; enabled; preset: enabled)
+     Active: failed (Result: exit-code) since Wed 2025-06-11 12:47:28 CST; 1min 54s ago
+   Duration: 7min 3.621s
+       Docs: man:nginx(8)
+    Process: 1210 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, status=1/FAILURE)
+        CPU: 19ms
+
+Jun 11 12:47:28 Matebook13-b systemd[1]: Starting nginx.service - A high performance web server and a reverse proxy server...
+Jun 11 12:47:28 Matebook13-b nginx[1210]: 2025/06/11 12:47:28 [emerg] 1210#1210: "location" directive is not allowed here in /etc/nginx/nginx.conf:63
+Jun 11 12:47:28 Matebook13-b nginx[1210]: nginx: configuration file /etc/nginx/nginx.conf test failed
+Jun 11 12:47:28 Matebook13-b systemd[1]: nginx.service: Control process exited, code=exited, status=1/FAILURE
+Jun 11 12:47:28 Matebook13-b systemd[1]: nginx.service: Failed with result 'exit-code'.
+Jun 11 12:47:28 Matebook13-b systemd[1]: Failed to start nginx.service - A high performance web server and a reverse proxy server.

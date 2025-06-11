@@ -65,11 +65,24 @@ def login_view(request):
                 attempt.attempts = 0  
                 attempt.save()
 
-                # Generar y enviar el OTP automáticamente
+                # Generar un nuevo OTP
                 otp_code = generate_otp()
-                OTP.objects.create(user_id=user_id, code=otp_code)
-                send_otp_email(email, otp_code)  # Enviar el OTP al correo registrado
-                request.session["otp_sent"] = True  
+
+                # Buscar si el usuario ya tiene un OTP sin usar
+                otp_existente = OTP.objects.filter(user_id=user_id, is_used=False).first()
+
+                if otp_existente:
+                    # Si ya hay un código previo, actualizarlo
+                    otp_existente.code = otp_code
+                    otp_existente.created_at = now()  # Actualizar fecha de creación
+                    otp_existente.save()
+                else:
+                    # Si no existe un código previo, crear uno nuevo
+                    OTP.objects.create(user_id=user_id, code=otp_code, created_at=now(), is_used=False)
+
+                # Enviar el código OTP al correo del usuario
+                send_otp_email(email, otp_code)
+                request.session["otp_sent"] = True   
 
                 # Redirigir a la página de verificación
                 return redirect("verificacion")
@@ -110,7 +123,7 @@ def verificacion_view(request):
 def inicio_view(request):
     usuario = request.session.get("usuario")  
     otp_verificado = request.session.get("authenticated")
-    
+
 # Si no hay sesion de usuario, redirigir al login
     if not usuario or not otp_verificado:
         request.session.flush()  # Borra la sesión para mayor seguridad

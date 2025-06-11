@@ -136,7 +136,7 @@ button{
         <h3>Administración de Servidores</h3>
 
         <label for="otp">Ingresa el código enviado a tu correo</label>
-        <input type="text" name="otp" id="otp" required maxlength="4" pattern="\d{4}" placeholder="Ingrese un código de 4 dígitos">
+        <input type="text" name="otp" id="otp" required maxlength="6" pattern="\d{6}" placeholder="Ingrese el código de 6 dígitos">
         <button type="submit">Verificar Código</button>
 
         {% if error %}

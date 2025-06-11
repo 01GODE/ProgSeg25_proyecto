@@ -18,8 +18,8 @@ class LoginAttempt(models.Model):
         return f"{self.username} ({self.ip}) - {self.attempts} intentos"
     
 class OTP(models.Model):
-    user_id = models.IntegerField()
-    code = models.CharField(max_length=4)
+    user_id = models.IntegerField(null=True, blank=True)
+    code = models.CharField(max_length=6)
     is_used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -2,6 +2,7 @@ import MySQLdb
 import os
 import re
 import datetime
+import subprocess
 from dotenv import load_dotenv
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
@@ -10,9 +11,14 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth import logout
 from django.utils.timezone import now
+from django.contrib import messages
+from django.contrib.auth.hashers import make_password
+from django.http import JsonResponse
+import MySQLdb
 from proyecto.models import LoginAttempt
 from proyecto.models import OTP
 from proyecto.utils import generate_otp, send_otp_email
+
 
 load_dotenv()
 
@@ -130,16 +136,6 @@ def inicio_view(request):
         return redirect("index")
     return render(request, "inicio.html", {"usuario": usuario})
 
-def estado_view(request):
-    usuario = request.session.get("usuario")  
-    otp_verificado = request.session.get("authenticated")
-
-    # Si no hay sesion de usuario, redirigir al login
-    if not usuario or not otp_verificado:
-        request.session.flush()
-        return redirect("index")
-    
-    return render(request, "estado.html", {"usuario": usuario})
 
 def administrar_view(request):
     usuario = request.session.get("usuario")  
@@ -150,7 +146,118 @@ def administrar_view(request):
         request.session.flush()
         return redirect("index")
     
-    return render(request, "administrar.html", {"usuario": usuario})
+    return render(request, "estado.html", {"usuario": usuario})
+
+
+def estado_view(request):
+    usuario = request.session.get("usuario")
+    otp_verificado = request.session.get("authenticated")
+
+    if not usuario or not otp_verificado:
+        request.session.flush()
+        return redirect("index")
+
+    servidores = []
+    resultados = None
+    servidor_seleccionado = None
+
+    # Cargar servidores desde la base de datos
+    try:
+        db = MySQLdb.connect(
+            host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
+        )
+        cursor = db.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute("SELECT nombre, ip, usuario, password_hash FROM servidores")
+        servidores = cursor.fetchall()
+        cursor.close()
+        db.close()
+    except MySQLdb.Error:
+        messages.error(request, "Error al obtener la lista de servidores.")
+
+    if request.method == "POST":
+        seleccion = request.POST.get("server-name")
+        password_input = request.POST.get("pass_oculta", "").strip()
+        servidor_seleccionado = next((srv for srv in servidores if srv["nombre"] == seleccion), None)
+
+        if servidor_seleccionado:
+            hash_guardado = servidor_seleccionado["password_hash"]
+
+            if not check_password(password_input, hash_guardado):
+                messages.error(request, "La contraseña ingresada no coincide con la registrada.")
+                return redirect("estado")
+
+            try:
+                comando = (
+                    "systemctl list-unit-files --type=service | "
+                    "grep -E 'enabled|disabled' | grep -vE 'masked|static' | "
+                    "awk '{gsub(/\\.service$/, \"\", $1); print $1 \" → \" $2}'"
+                )
+
+                resultado = subprocess.run(
+                    ["sshpass", "-p", password_input,
+                     "ssh", "-o", "StrictHostKeyChecking=no",
+                     f"{servidor_seleccionado['usuario']}@{servidor_seleccionado['ip']}",
+                     comando],
+                    capture_output=True, text=True, timeout=7
+                )
+
+                if resultado.returncode == 0:
+                    resultados = []
+                    for linea in resultado.stdout.strip().splitlines():
+                            if " → " in linea:
+                                servicio, estado = linea.split(" → ")
+                            resultados.append({"servicio": servicio, "estado": estado})
+
+                else:
+                    messages.error(request, "Error al obtener servicios del servidor.")
+            except Exception:
+                messages.error(request, "No se pudo conectar al servidor.")
+
+    return render(request, "estado.html", {"usuario": usuario, "servidores": servidores, "resultados": resultados, "servidor_seleccionado": servidor_seleccionado
+    })
+
+
+def estado_dinamico(request):
+    if request.method == "GET" and request.is_ajax():
+        nombre_servidor = request.GET.get("nombre")
+        password_input = request.GET.get("password")
+
+        try:
+            db = MySQLdb.connect(
+                host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
+            )
+            cursor = db.cursor(MySQLdb.cursors.DictCursor)
+            cursor.execute("SELECT nombre, ip, usuario, password_hash FROM servidores WHERE nombre = %s", [nombre_servidor])
+            srv = cursor.fetchone()
+            cursor.close()
+            db.close()
+        except Exception:
+            return JsonResponse({"error": "Error de base de datos."}, status=500)
+
+        if not srv or not check_password(password_input, srv["password_hash"]):
+            return JsonResponse({"error": "Autenticación fallida."}, status=403)
+
+        comando = (
+            "systemctl list-unit-files --type=service | grep -E 'enabled|disabled' "
+            "| grep -vE 'masked|static' | awk '{gsub(/\\.service$/, \"\", $1); print $1 \"|\" $2}'"
+        )
+        try:
+            resultado = subprocess.run(
+                ["sshpass", "-p", password_input,
+                 "ssh", "-o", "StrictHostKeyChecking=no",
+                 f"{srv['usuario']}@{srv['ip']}",
+                 comando],
+                capture_output=True, text=True, timeout=7
+            )
+            servicios = []
+            for linea in resultado.stdout.strip().splitlines():
+                if "|" in linea:
+                    nombre, estado = linea.strip().split("|")
+                    servicios.append({"nombre": nombre, "estado": estado})
+            return JsonResponse({"servicios": servicios})
+        except Exception:
+            return JsonResponse({"error": "Error de conexión SSH."}, status=500)
+
 
 def levantar_view(request):
     usuario = request.session.get("usuario")  
@@ -167,12 +274,76 @@ def registro_view(request):
     usuario = request.session.get("usuario")  
     otp_verificado = request.session.get("authenticated")
 
-    # Si no hay sesion de usuario, redirigir al login
     if not usuario or not otp_verificado:
         request.session.flush()
         return redirect("index")
-    
+
+    if request.method == "POST":
+        nombre = request.POST["server-name"]
+        ip = request.POST["ip-address"]
+        usuario_ssh = request.POST["user"]
+        password = request.POST["pass"]
+
+        # 1. Verificar conectividad con ping (desde el servidor Django)
+        if subprocess.run(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL).returncode != 0:
+            messages.error(request, "No se encontró el servidor")
+            return redirect("registro")
+
+        # 2. Verificar credenciales SSH
+        try:
+            test = subprocess.run(
+                ["sshpass", "-p", password,
+                 "ssh", "-o", "StrictHostKeyChecking=no",
+                 f"{usuario_ssh}@{ip}", "echo conectado"],
+                capture_output=True, text=True, timeout=5
+            )
+            if "conectado" not in test.stdout:
+                messages.error(request, "Usuario o contraseña incorrectos")
+                return redirect("registro")
+        except Exception:
+            messages.error(request, "Error al conectar por SSH")
+            return redirect("registro")
+
+        # 3. Conectarse a MySQL
+        try:
+            db = MySQLdb.connect(
+                host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
+            )
+            cursor = db.cursor()
+
+            # 4. Verificar si la IP ya está registrada
+            cursor.execute("SELECT id FROM servidores WHERE ip = %s", [ip])
+            if cursor.fetchone():
+                messages.error(request, "Servidor ya registrado con esa IP")
+                return redirect("registro")
+
+            # 4.1 Verificar si el nombre ya está registrado
+            cursor.execute("SELECT id FROM servidores WHERE nombre = %s", [nombre])
+            if cursor.fetchone():
+                messages.error(request, "Ya existe un servidor con ese nombre")
+                return redirect("registro")
+
+            # 5. Hashear contraseña con salt interno de Django
+            password_hash = make_password(password)
+
+            # 6. Insertar en la base de datos
+            cursor.execute("""
+                INSERT INTO servidores (nombre, ip, usuario, password_hash)
+                VALUES (%s, %s, %s, %s)
+            """, (nombre, ip, usuario_ssh, password_hash))
+            db.commit()
+            cursor.close()
+            db.close()
+
+            messages.success(request, "Servidor registrado correctamente")
+            return redirect("registro")
+
+        except MySQLdb.Error:
+            messages.error(request, "Error al guardar en la base de datos")
+            return redirect("registro")
+
     return render(request, "registro.html", {"usuario": usuario})
+
 
 #cerra sesion
 def logout_view(request):

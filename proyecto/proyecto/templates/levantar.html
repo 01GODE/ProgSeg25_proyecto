@@ -115,7 +115,9 @@
         <a href="{% url 'logout' %}" style="color: white;">Cerrar Sesión</a>
     </div>
     <div class="back-button">
-            <button onclick="window.history.back()">Regresar</button>
+        <form action="{% url 'inicio' %}" method="get">
+            <button type="submit">Regresar</button>
+        </form>
     </div>
     <div class="option">
             <img src="{% static 'img/levantar.png' %}" alt="Levantar Servicio">

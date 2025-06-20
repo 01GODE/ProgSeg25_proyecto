@@ -104,6 +104,41 @@
             height: 50px;
             margin-bottom: 10px;
         }
+        .ver-btn {
+            background-color: rgb(0, 152, 48);
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+        }
+        .ver-btn:hover {
+            background-color: grey;
+        }
+        .tabla-servicios {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            border-radius: 10px;
+        }
+        .tabla-servicios th, .tabla-servicios td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+        .tabla-servicios th {
+            background-color: #f4f4f4;
+            border-radius: 10px;
+        }
+        .estado-enabled {
+            color: green;
+            font-weight: bold;
+        }
+        .estado-disabled {
+            color: red;
+            font-weight: bold;
+        }
+
     </style>
 </head>
 <body>
@@ -111,31 +146,98 @@
         <h1>Administración de Servidores</h1>
         <p>Bienvenido {{ usuario }}</p>
     </div>
+
     <div class="logout">
         <a href="{% url 'logout' %}" style="color: white;">Cerrar Sesión</a>
     </div>
+
     <div class="back-button">
-            <button onclick="window.history.back()">Inicio</button>
-    </div>
-    <div class="option">
-            <img src="{% static 'img/estado.png' %}" alt="Ver Estado">
-            <p><b>Estado</b></p>
-    </div>
-    <div class="container">
-        <form action="#" method="post">
-            <div class="form-group">
-                <label for="server-name">Selecciona Servidor:</label>
-                <select id="server-name" name="server-name">
-                    <option value="" disabled selected>Selecciona un Servidor</option>
-                    <option value="debian (192.0.0.1)">debian (192.0.0.1)</option>
-                    <option value="kali (192.0.0.2)">kali (192.0.0.2)</option>
-                </select>
-            </div>
-            <div class="button-container">
-                <button></button>
-                <button3 type="submit">Ver</button3>
-            </div>
+        <form action="{% url 'inicio' %}" method="get">
+            <button type="submit">Inicio</button>
         </form>
     </div>
+
+    <div class="option">
+        <img src="{% static 'img/estado.png' %}" alt="Ver Estado" width="50">
+        <p><b>Estado</b></p>
+    </div>
+
+    <div class="container">
+        <form id="estado-form">
+            <div class="form-group">
+                <label for="server-name">Selecciona Servidor:</label>
+                <select id="server-name" name="server-name" required>
+                    <option value="" disabled selected>Selecciona un Servidor</option>
+                    {% for srv in servidores %}
+                        <option value="{{ srv.nombre }}">{{ srv.nombre }} ({{ srv.ip }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="pass_oculta">Contraseña del servidor:</label>
+                <input type="password" id="pass_oculta" name="pass_oculta" required>
+            </div>
+
+            <div class="button-container2">
+                <button type="submit" class="ver-btn">ver</button>
+            </div>
+        </form>
+
+        <div id="contenedor-tabla"></div>
+    </div>
+
+    {% if messages %}
+    <script>
+        window.onload = function () {
+            {% for message in messages %}
+                alert("{{ message|escapejs }}");
+            {% endfor %}
+        };
+    </script>
+    {% endif %}
+
+    <script>
+        const form = document.getElementById("estado-form");
+        const tabla = document.getElementById("contenedor-tabla");
+        let nombreServidor = "";
+        let claveServidor = "";
+
+        function actualizarServicios() {
+            if (!nombreServidor || !claveServidor) return;
+
+            fetch(`/estado_dinamico/?nombre=${encodeURIComponent(nombreServidor)}&password=${encodeURIComponent(claveServidor)}`, {
+                headers: { "X-Requested-With": "XMLHttpRequest" }
+            })
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.error) {
+                    tabla.innerHTML = `<p style="color:red;">${data.error}</p>`;
+                    return;
+                }
+
+                let html = `
+                    <table class="tabla-servicios">
+                        <thead><tr><th>Servicio</th><th>Estado</th></tr></thead>
+                        <tbody>
+                `;
+                for (const item of data.servicios) {
+                    const clase = item.estado === "enabled" ? "estado-enabled" : "estado-disabled";
+                    html += `<tr><td>${item.nombre}</td><td class="${clase}">${item.estado}</td></tr>`;
+                }
+                html += "</tbody></table>";
+                tabla.innerHTML = html;
+            });
+        }
+
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            nombreServidor = document.getElementById("server-name").value;
+            claveServidor = document.getElementById("pass_oculta").value;
+            actualizarServicios();
+        });
+
+        setInterval(actualizarServicios, 3000);
+    </script>
 </body>
 </html>

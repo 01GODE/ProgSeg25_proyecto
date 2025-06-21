@@ -32,6 +32,7 @@ DB_PORT = int(os.getenv("DB_PORT"))
 MAX_ATTEMPTS = 3
 LOCK_TIME = 10
 
+
 def index(request):
     return render(request, 'index.html')
 
@@ -138,15 +139,107 @@ def inicio_view(request):
 
 
 def administrar_view(request):
-    usuario = request.session.get("usuario")  
-    otp_verificado = request.session.get("authenticated")
-
-    # Si no hay sesion de usuario, redirigir al login
-    if not usuario or not otp_verificado:
-        request.session.flush()
+    usuario = request.session.get("usuario")
+    if not usuario:
         return redirect("index")
-    
-    return render(request, "estado.html", {"usuario": usuario})
+
+    servicios = []
+    servidores = []
+    servidor = None
+
+    try:
+        db = MySQLdb.connect(
+            host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
+        )
+        cursor = db.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute("SELECT id, nombre, ip, usuario, password_hash FROM servidores")
+        servidores = cursor.fetchall()
+        cursor.close()
+        db.close()
+    except MySQLdb.Error:
+        messages.error(request, "No se pudo acceder a la base de datos.")
+
+    if request.method == "POST":
+        accion = request.POST.get("accion")
+        servidor_id = request.POST.get("server-name")
+        password_input = request.POST.get("pass_oculta", "").strip()
+        servidor = next((s for s in servidores if str(s["id"]) == servidor_id), None)
+
+        if not servidor:
+            messages.error(request, "Servidor inválido.")
+            return redirect("administrar")
+
+        if not check_password(password_input, servidor["password_hash"]):
+            messages.error(request, "Contraseña incorrecta.")
+            return redirect("administrar")
+
+        if accion == "verificar":
+            comando = (
+                f"echo '{password_input}' | sudo -S -p '' "
+                "systemctl list-units --type=service --all | "
+                "grep -E 'active|inactive' | grep -v 'not-found' | "
+                "awk '{ split($1, name, \".service\"); print name[1] }'"
+            )
+            try:
+                resultado = subprocess.run(
+                    ["sshpass", "-p", password_input,
+                     "ssh", "-o", "StrictHostKeyChecking=no",
+                     f"{servidor['usuario']}@{servidor['ip']}",
+                     comando],
+                    capture_output=True, text=True, timeout=10
+                )
+                if resultado.returncode == 0:
+                    servicios = resultado.stdout.strip().splitlines()
+                    if not servicios:
+                        messages.warning(request, "No se encontraron servicios en el servidor.")
+                else:
+                    messages.error(request, "Fallo al obtener servicios del servidor.")
+            except Exception as e:
+                print("EXCEPCIÓN:", str(e))
+                messages.error(request, "Error en la conexión SSH.")
+
+            # Muestra el formulario con servicios disponibles sin redirigir
+            return render(request, "administrar.html", {
+                "usuario": usuario,
+                "servidores": servidores,
+                "servicios": servicios,
+                "servidor_seleccionado": servidor_id,
+                "pass_oculta": password_input
+            })
+
+        elif accion == "ejecutar":
+            servicio = request.POST.get("service-name")
+            opcion = request.POST.get("opcion")
+            if not servicio or not opcion:
+                messages.error(request, "Debe seleccionar un servicio y una acción.")
+                return redirect("administrar")
+
+            cmd = f"systemctl {'restart' if opcion == 'Reiniciar' else 'stop'} {servicio}.service"
+            comando = f"echo '{password_input}' | sudo -S -p '' {cmd}"
+            try:
+                resultado = subprocess.run(
+                    ["sshpass", "-p", password_input,
+                     "ssh", "-o", "StrictHostKeyChecking=no",
+                     f"{servidor['usuario']}@{servidor['ip']}",
+                     comando],
+                    capture_output=True, text=True, timeout=10
+                )
+                if resultado.returncode == 0:
+                    messages.success(request, f" {opcion.lower()} '{servicio}' Completado.")
+                else:
+                    messages.error(request, "Fallo al ejecutar la operación.")
+            except Exception as e:
+                print("EXCEPCIÓN:", str(e))
+                messages.error(request, "Fallo en la conexión SSH.")
+
+            return redirect("administrar")  # Solo redirigir después de ejecutar
+
+    return render(request, "administrar.html", {
+        "usuario": usuario,
+        "servidores": servidores,
+        "servicios": []
+    })
+
 
 
 def estado_view(request):
@@ -154,20 +247,142 @@ def estado_view(request):
     otp_verificado = request.session.get("authenticated")
 
     if not usuario or not otp_verificado:
-        request.session.flush()
         return redirect("index")
 
-    servidores = []
-    resultados = None
+    resultados = []
     servidor_seleccionado = None
 
-    # Cargar servidores desde la base de datos
     try:
         db = MySQLdb.connect(
             host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
         )
         cursor = db.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute("SELECT nombre, ip, usuario, password_hash FROM servidores")
+        cursor.execute("SELECT id, nombre, ip, usuario, password_hash FROM servidores")
+        servidores = cursor.fetchall()
+        cursor.close()
+        db.close()
+    except MySQLdb.Error:
+        messages.error(request, "Error al obtener la lista de servidores.")
+        servidores = []
+
+    if request.method == "POST":
+        seleccion_id = request.POST.get("server-name")
+        password_input = request.POST.get("pass_oculta", "").strip()
+
+        servidor_seleccionado = next((srv for srv in servidores if str(srv["id"]) == seleccion_id), None)
+
+        if servidor_seleccionado:
+            hash_guardado = servidor_seleccionado["password_hash"]
+            if not check_password(password_input, hash_guardado):
+                messages.error(request, "La contraseña ingresada es incorrecta.")
+                return redirect("estado")
+
+            comando = (
+                "systemctl list-units --type=service --all | "
+                "grep -E 'active|inactive' | grep -v 'not-found' | "
+                "awk '{ split($1, name, \".service\"); print name[1] \" \" $3 \" \" $4 }'"
+            )
+
+            try:
+                resultado = subprocess.run(
+                    ["sshpass", "-p", password_input,
+                     "ssh", "-o", "StrictHostKeyChecking=no",
+                     f"{servidor_seleccionado['usuario']}@{servidor_seleccionado['ip']}",
+                     comando],
+                    capture_output=True, text=True, timeout=10
+                )
+
+                if resultado.returncode == 0:
+                    for linea in resultado.stdout.strip().splitlines():
+                        partes = linea.strip().split()
+                        if len(partes) == 3:
+                            resultados.append({
+                                "servicio": partes[0],
+                                "actividad": partes[1].lower(),  # e.g. active/inactive
+                                "estado": partes[2].lower()      # e.g. running/exited
+                            })
+                else:
+                    messages.error(request, "No se pudo obtener la lista de servicios del servidor.")
+            except Exception:
+                messages.error(request, "Error al conectarse al servidor remoto.")
+        else:
+            messages.error(request, "Servidor no encontrado.")
+
+    return render(request, "estado.html", {
+        "usuario": usuario,
+        "servidores": servidores,
+        "resultados": resultados,
+        "servidor_seleccionado": servidor_seleccionado
+    })
+
+def actualizar_servicios(request):
+    server_id = request.GET.get("server_id")
+    password = request.GET.get("password")
+
+    # Replicamos validaciones y conexión
+    try:
+        db = MySQLdb.connect(
+            host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
+        )
+        cursor = db.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute("SELECT id, nombre, ip, usuario, password_hash FROM servidores")
+        servidores = cursor.fetchall()
+        cursor.close()
+        db.close()
+    except:
+        return JsonResponse({"error": "Error de base de datos"}, status=500)
+
+    servidor = next((s for s in servidores if str(s["id"]) == server_id), None)
+    if not servidor or not check_password(password, servidor["password_hash"]):
+        return JsonResponse({"error": "Acceso denegado"}, status=403)
+
+    comando = (
+        "systemctl list-units --type=service --all | "
+        "grep -E 'active|inactive' | grep -v 'not-found' | "
+        "awk '{ split($1, name, \".service\"); print name[1] \" \" $3 \" \" $4 }'"
+    )
+
+    try:
+        resultado = subprocess.run(
+            ["sshpass", "-p", password,
+             "ssh", "-o", "StrictHostKeyChecking=no",
+             f"{servidor['usuario']}@{servidor['ip']}", comando],
+            capture_output=True, text=True, timeout=10
+        )
+
+        servicios = []
+        if resultado.returncode == 0:
+            for linea in resultado.stdout.strip().splitlines():
+                partes = linea.split()
+                if len(partes) == 3:
+                    servicios.append({
+                        "servicio": partes[0],
+                        "actividad": partes[1].lower(),
+                        "estado": partes[2].lower()
+                    })
+        return JsonResponse({"servicios": servicios})
+    except:
+        return JsonResponse({"error": "Fallo SSH"}, status=500)
+
+
+def levantar_view(request):
+    usuario = request.session.get("usuario")  
+    otp_verificado = request.session.get("authenticated")
+
+    # Si no hay sesión activa, redirigir al login
+    if not usuario or not otp_verificado:
+        request.session.flush()
+        return redirect("index")
+
+    servidores = []
+    servidor = None
+
+    try:
+        db = MySQLdb.connect(
+            host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
+        )
+        cursor = db.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute("SELECT id, nombre, ip, usuario, password_hash FROM servidores")
         servidores = cursor.fetchall()
         cursor.close()
         db.close()
@@ -175,100 +390,54 @@ def estado_view(request):
         messages.error(request, "Error al obtener la lista de servidores.")
 
     if request.method == "POST":
-        seleccion = request.POST.get("server-name")
+        servidor_id = request.POST.get("server-name")
         password_input = request.POST.get("pass_oculta", "").strip()
-        servidor_seleccionado = next((srv for srv in servidores if srv["nombre"] == seleccion), None)
+        servicio_input = request.POST.get("nombre-servicio", "").strip()
 
-        if servidor_seleccionado:
-            hash_guardado = servidor_seleccionado["password_hash"]
+        servidor = next((s for s in servidores if str(s["id"]) == servidor_id), None)
 
-            if not check_password(password_input, hash_guardado):
-                messages.error(request, "La contraseña ingresada no coincide con la registrada.")
-                return redirect("estado")
+        if not servidor:
+            messages.error(request, "Servidor inválido.")
+            return redirect("levantar")
 
-            try:
-                comando = (
-                    "systemctl list-unit-files --type=service | "
-                    "grep -E 'enabled|disabled' | grep -vE 'masked|static' | "
-                    "awk '{gsub(/\\.service$/, \"\", $1); print $1 \" → \" $2}'"
-                )
+        if not check_password(password_input, servidor["password_hash"]):
+            messages.error(request, "Contraseña incorrecta.")
+            return redirect("levantar")
 
-                resultado = subprocess.run(
-                    ["sshpass", "-p", password_input,
-                     "ssh", "-o", "StrictHostKeyChecking=no",
-                     f"{servidor_seleccionado['usuario']}@{servidor_seleccionado['ip']}",
-                     comando],
-                    capture_output=True, text=True, timeout=7
-                )
+        if not servicio_input:
+            messages.error(request, "Debe ingresar el nombre del servicio a levantar.")
+            return redirect("levantar")
 
-                if resultado.returncode == 0:
-                    resultados = []
-                    for linea in resultado.stdout.strip().splitlines():
-                            if " → " in linea:
-                                servicio, estado = linea.split(" → ")
-                            resultados.append({"servicio": servicio, "estado": estado})
+        comando = f"echo '{password_input}' | sudo -S -p '' systemctl start {servicio_input}.service"
 
-                else:
-                    messages.error(request, "Error al obtener servicios del servidor.")
-            except Exception:
-                messages.error(request, "No se pudo conectar al servidor.")
-
-    return render(request, "estado.html", {"usuario": usuario, "servidores": servidores, "resultados": resultados, "servidor_seleccionado": servidor_seleccionado
-    })
-
-
-def estado_dinamico(request):
-    if request.method == "GET" and request.is_ajax():
-        nombre_servidor = request.GET.get("nombre")
-        password_input = request.GET.get("password")
-
-        try:
-            db = MySQLdb.connect(
-                host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
-            )
-            cursor = db.cursor(MySQLdb.cursors.DictCursor)
-            cursor.execute("SELECT nombre, ip, usuario, password_hash FROM servidores WHERE nombre = %s", [nombre_servidor])
-            srv = cursor.fetchone()
-            cursor.close()
-            db.close()
-        except Exception:
-            return JsonResponse({"error": "Error de base de datos."}, status=500)
-
-        if not srv or not check_password(password_input, srv["password_hash"]):
-            return JsonResponse({"error": "Autenticación fallida."}, status=403)
-
-        comando = (
-            "systemctl list-unit-files --type=service | grep -E 'enabled|disabled' "
-            "| grep -vE 'masked|static' | awk '{gsub(/\\.service$/, \"\", $1); print $1 \"|\" $2}'"
-        )
         try:
             resultado = subprocess.run(
                 ["sshpass", "-p", password_input,
                  "ssh", "-o", "StrictHostKeyChecking=no",
-                 f"{srv['usuario']}@{srv['ip']}",
+                 f"{servidor['usuario']}@{servidor['ip']}",
                  comando],
-                capture_output=True, text=True, timeout=7
+                capture_output=True, text=True, timeout=10
             )
-            servicios = []
-            for linea in resultado.stdout.strip().splitlines():
-                if "|" in linea:
-                    nombre, estado = linea.strip().split("|")
-                    servicios.append({"nombre": nombre, "estado": estado})
-            return JsonResponse({"servicios": servicios})
-        except Exception:
-            return JsonResponse({"error": "Error de conexión SSH."}, status=500)
+
+            if resultado.returncode == 0:
+                messages.success(request, f"El servicio '{servicio_input}' se levantó correctamente.")
+            else:
+                stderr = resultado.stderr.strip()
+                if "not found" in stderr or "not be found" in stderr or "Failed" in stderr:
+                    messages.error(request, f"El servicio '{servicio_input}' no existe o no se pudo levantar.")
+                else:
+                    messages.error(request, f"Error al intentar levantar el servicio: {stderr}")
+        except Exception as e:
+            messages.error(request, f"No se pudo conectar con el servidor: {str(e)}")
+
+        return redirect("levantar")
+
+    return render(request, "levantar.html", {
+        "usuario": usuario,
+        "servidores": servidores
+    })
 
 
-def levantar_view(request):
-    usuario = request.session.get("usuario")  
-    otp_verificado = request.session.get("authenticated")
-
-    # Si no hay sesion de usuario, redirigir al login
-    if not usuario or not otp_verificado:
-        request.session.flush()
-        return redirect("index")
-    
-    return render(request, "levantar.html", {"usuario": usuario})
 
 def registro_view(request):
     usuario = request.session.get("usuario")  
@@ -282,7 +451,7 @@ def registro_view(request):
         nombre = request.POST["server-name"]
         ip = request.POST["ip-address"]
         usuario_ssh = request.POST["user"]
-        password = request.POST["pass"]
+        password = request.POST.get("pass", "").strip()
 
         # 1. Verificar conectividad con ping (desde el servidor Django)
         if subprocess.run(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL).returncode != 0:

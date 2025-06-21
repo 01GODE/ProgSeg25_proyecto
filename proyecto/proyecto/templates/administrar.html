@@ -104,6 +104,18 @@
             height: 50px;
             margin-bottom: 10px;
         }
+        ul.mensajes {
+            list-style-type: none;
+            padding: 0;
+            margin-bottom: 20;
+            text-align: center;
+        }
+        ul.mensajes li.error {
+            color: red;
+        }
+        ul.mensajes li.success {
+            color: green;
+        }
     </style>
 </head>
 <body>
@@ -124,32 +136,52 @@
             <p><b>Administar Servicios</b></p>
     </div>
     <div class="container">
-        <form action="#" method="post">
-            <div class="form-group">
-                <label for="server-name">Selecciona el Servidor:</label>
-                <select id="server-name" name="server-name">
-                    <option value="" disabled selected>Selecciona un Servidor</option>
-                    <option value="debian (192.0.0.1)">debian (192.0.0.1)</option>
-                    <option value="kali (192.0.0.2)">kali (192.0.0.2</option>
-                </select>
-                <label for="service-name">Selecciona el Servicio:</label>
-                <select id="service-name" name="service-name">
-                    <option value="" disabled selected>Selecciona un servicio</option>
-                    <option value="apache2">apache2</option>
-                    <option value="ssh">ssh</option>
-                </select>
-                <label for="opcion">Selecciona una opción:</label>
-                <select id="opcion" name="opcion">
-                    <option value="" disabled selected>Selecciona una opción</option>
-                    <option value="Reiniciar">Reiniciar</option>
-                    <option value="Dar de Baja">Dar de Baja</option>
-                </select>
-            </div>
-            <div class="button-container">
-                <button></button>
-                <button3 type="submit">Aceptar</button3>
-            </div>
-        </form>
+        {% if messages %}
+        <ul class="mensajes">
+            {% for message in messages %}
+                <li class="{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+        
+        <form method="post" action="{% url 'administrar' %}">
+    {% csrf_token %}
+    <label for="server-name">Servidor:</label>
+    <select name="server-name" required>
+    <option value="" disabled {% if not servidor_seleccionado %}selected{% endif %}>Selecciona un servidor</option>
+    {% for servidor in servidores %}
+        <option value="{{ servidor.id }}"
+            {% if servidor.id|stringformat:"s" == servidor_seleccionado %}selected{% endif %}>
+            {{ servidor.nombre }} ({{ servidor.ip }})
+        </option>
+    {% endfor %}
+</select>
+
+
+    <label for="pass_oculta">Contraseña:</label>
+    <input type="password" name="pass_oculta" required value="{{ pass_oculta }}">
+
+
+    <button type="submit" name="accion" value="verificar">Cargar Servicios</button>
+
+    {% if servicios %}
+        <label for="service-name">Servicio:</label>
+        <select name="service-name" required>
+            <option value="" disabled selected>Selecciona un servicio</option>
+            {% for s in servicios %}
+                <option value="{{ s }}">{{ s }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="opcion">Acción:</label>
+        <select name="opcion" required>
+            <option value="Reiniciar">Reiniciar</option>
+            <option value="Dar de Baja">Dar de Baja</option>
+        </select>
+
+        <button type="submit" name="accion" value="ejecutar">Aceptar</button>
+    {% endif %}
+</form>
     </div>
 </body>
 </html>

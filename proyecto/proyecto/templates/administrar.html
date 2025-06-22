@@ -1,122 +1,12 @@
 {% load static %}
+<link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrar Servidor</title>
-    <style>
-        body {
-            background-color: black;
-            color: white;
-            font-family: Arial, sans-serif;
-            text-align: center;
-        }
-        .header {
-            padding: 20px;
-            text-align: left;
-        }
-        .logout {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-        }
-        .logout a:hover {
-            color: red !important;
-        }
-        .container {
-            width: 60%;
-            margin: auto;
-            margin-bottom: 100px;
-            background-color: white;
-            color: black;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 10px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-            text-align: left;
-        }
-        label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        input, select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        .button-container {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-        button {
-            background-color: rgb(255, 255, 255);
-            color: rgb(0, 0, 0);
-            padding: 10px 15px;
-            border: none;
-            border-radius: 100px;
-            cursor: pointer;
-        }
-        button2 {
-            background-color: rgb(0, 0, 0);
-            color: rgb(255, 255, 255);
-            padding: 10px 15px;
-            border: none;
-            border-radius: 100px;
-            cursor: pointer;
-        }
-        button3 {
-            background-color: rgb(0, 152, 48);
-            color: rgb(255, 255, 255);
-            padding: 10px 15px;
-            border: none;
-            border-radius: 100px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: grey;
-        }
-        .back-button {
-            margin-top: 20px;
-            margin-left: 20px;
-            text-align: left;
-        }
-        .option {
-            background-color: white;
-            color: black;
-            width: 200px;
-            height: 200px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border-radius: 15px;
-            padding: 10px;
-            margin: 20px auto;
-        }
-        .option img {
-            width: 50px;
-            height: 50px;
-            margin-bottom: 10px;
-        }
-        ul.mensajes {
-            list-style-type: none;
-            padding: 0;
-            margin-bottom: 20;
-            text-align: center;
-        }
-        ul.mensajes li.error {
-            color: red;
-        }
-        ul.mensajes li.success {
-            color: green;
-        }
-    </style>
+    <title>Administrar Servidor</title>
 </head>
 <body>
     <div class="header">
@@ -127,9 +17,11 @@
         <a href="{% url 'logout' %}" style="color: white;">Cerrar Sesión</a>
     </div>
     <div class="back-button">
-        <form action="{% url 'inicio' %}" method="get">
-            <button type="submit">Regresar</button>
-        </form>
+    <form action="{% url 'inicio' %}" method="get">
+        <button type="submit">Regresar</button>
+    </form>
+</div>
+
     </div>
     <div class="option">
             <img src="{% static 'img/administrar.png' %}" alt="Administrar Servicios">
@@ -148,21 +40,22 @@
     {% csrf_token %}
     <label for="server-name">Servidor:</label>
     <select name="server-name" required>
-    <option value="" disabled {% if not servidor_seleccionado %}selected{% endif %}>Selecciona un servidor</option>
-    {% for servidor in servidores %}
-        <option value="{{ servidor.id }}"
-            {% if servidor.id|stringformat:"s" == servidor_seleccionado %}selected{% endif %}>
-            {{ servidor.nombre }} ({{ servidor.ip }})
-        </option>
-    {% endfor %}
-</select>
+        <option value="" disabled {% if not servidor_seleccionado %}selected{% endif %}>Selecciona un servidor</option>
+        {% for servidor in servidores %}
+            <option value="{{ servidor.id }}"
+                {% if servidor.id|stringformat:"s" == servidor_seleccionado %}selected{% endif %}>
+                {{ servidor.nombre }} ({{ servidor.ip }})
+            </option>
+        {% endfor %}
+    </select>
 
 
     <label for="pass_oculta">Contraseña:</label>
-    <input type="password" name="pass_oculta" required value="{{ pass_oculta }}">
+    <input type="password" name="pass_oculta" placeholder="Ingresa contraseña" pattern="[A-Za-z0-9_?\.]{1,50}" title="Solo letras y números" required value="{{ pass_oculta }}">
 
-
-    <button type="submit" name="accion" value="verificar">Cargar Servicios</button>
+    <div class="button-container2">
+                <button type="submit" name="accion" value="verificar" class="registrar-btn">Cargar Servicios</button>
+    </div>
 
     {% if servicios %}
         <label for="service-name">Servicio:</label>
@@ -175,13 +68,16 @@
 
         <label for="opcion">Acción:</label>
         <select name="opcion" required>
+            <option value="" disabled selected>Selecciona una opcion</option>
             <option value="Reiniciar">Reiniciar</option>
             <option value="Dar de Baja">Dar de Baja</option>
         </select>
 
-        <button type="submit" name="accion" value="ejecutar">Aceptar</button>
+        <div class="button-container2">
+                <button type="submit" name="accion" value="ejecutar" class="registrar-btn">Aceptar</button>
+        </div>
     {% endif %}
-</form>
+    </form>
     </div>
 </body>
 </html>

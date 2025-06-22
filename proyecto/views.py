@@ -14,7 +14,6 @@ from django.utils.timezone import now
 from django.contrib import messages
 from django.contrib.auth.hashers import make_password
 from django.http import JsonResponse
-import MySQLdb
 from proyecto.models import LoginAttempt
 from proyecto.models import OTP
 from proyecto.utils import generate_otp, send_otp_email
@@ -28,23 +27,40 @@ DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_PORT = int(os.getenv("DB_PORT"))
 
-#intentos de login
 MAX_ATTEMPTS = 3
 LOCK_TIME = 10
 
 
 def index(request):
+    """
+    Vista inicial del sistema.
+
+    Renderiza la página de inicio de sesión (`index.html`), sin realizar lógica adicional.
+    """
     return render(request, 'index.html')
 
+
 def get_client_ip(request):
-    """Obtener la IP del usuario"""
+    """
+    Obtiene la dirección IP del cliente a partir de los encabezados de la solicitud.
+
+    Si se encuentra detrás de un proxy, devuelve la primera IP en `X-Forwarded-For`.
+    De lo contrario, se obtiene desde `REMOTE_ADDR`.
+    """
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
         return x_forwarded_for.split(",")[0]
     return request.META.get("REMOTE_ADDR")
 
+
 def login_view(request):
-    request.session.flush()  # Borra todos los datos de sesión al entrar al index
+    """
+    Vista para gestionar el inicio de sesión de usuarios.
+
+    Valida credenciales y restringe intentos desde la misma IP.
+    Si el inicio es válido, genera y envía un OTP al correo del usuario.
+    """
+    request.session.flush()
     if request.method == "POST":
         username = request.POST["username"]
         password = request.POST["password"]
@@ -64,34 +80,27 @@ def login_view(request):
             db.close()
 
             if user_data and check_password(password, user_data[1]):
-                user_id, email = user_data[0], user_data[2]  # Obtener ID y correo del usuario
+                user_id, email = user_data[0], user_data[2]
 
-                # Guardar usuario en sesión
                 request.session["usuario"] = username
-                request.session["user_id"] = user_id  # Guardamos el ID del usuario
+                request.session["user_id"] = user_id
                 attempt.attempts = 0  
                 attempt.save()
 
-                # Generar un nuevo OTP
                 otp_code = generate_otp()
 
-                # Buscar si el usuario ya tiene un OTP sin usar
                 otp_existente = OTP.objects.filter(user_id=user_id, is_used=False).first()
 
                 if otp_existente:
-                    # Si ya hay un código previo, actualizarlo
                     otp_existente.code = otp_code
-                    otp_existente.created_at = now()  # Actualizar fecha de creación
+                    otp_existente.created_at = now()
                     otp_existente.save()
                 else:
-                    # Si no existe un código previo, crear uno nuevo
                     OTP.objects.create(user_id=user_id, code=otp_code, created_at=now(), is_used=False)
 
-                # Enviar el código OTP al correo del usuario
                 send_otp_email(email, otp_code)
                 request.session["otp_sent"] = True   
 
-                # Redirigir a la página de verificación
                 return redirect("verificacion")
 
             attempt.attempts += 1
@@ -103,7 +112,13 @@ def login_view(request):
 
     return render(request, "index.html")
 
+
 def verificacion_view(request):
+    """
+    Vista para verificar el código OTP tras login.
+
+    Si el código es válido, habilita acceso y redirige a 'inicio'.
+    """
     usuario = request.session.get("usuario")
     user_id = request.session.get("user_id")  
 
@@ -113,7 +128,6 @@ def verificacion_view(request):
     if request.method == "POST":
         otp_code = request.POST.get("otp")
 
-        # Verificar OTP ingresado
         otp = OTP.objects.filter(user_id=user_id, code=otp_code, is_used=False).first()
 
         if otp and not otp.is_expired():
@@ -126,19 +140,29 @@ def verificacion_view(request):
     return render(request, "verificacion.html")
 
 
-
 def inicio_view(request):
+    """
+    Vista principal tras autenticación.
+
+    Verifica sesión activa y OTP correcto. Redirige si la sesión no es válida.
+    """
     usuario = request.session.get("usuario")  
     otp_verificado = request.session.get("authenticated")
 
-# Si no hay sesion de usuario, redirigir al login
     if not usuario or not otp_verificado:
-        request.session.flush()  # Borra la sesión para mayor seguridad
+        request.session.flush()
         return redirect("index")
     return render(request, "inicio.html", {"usuario": usuario})
 
 
 def administrar_view(request):
+    """
+    Administra servicios remotos vía SSH.
+
+    - Lista servidores disponibles.
+    - Verifica contraseña del servidor.
+    - Lista servicios o ejecuta reinicio/parada según acción solicitada.
+    """
     usuario = request.session.get("usuario")
     if not usuario:
         return redirect("index")
@@ -198,7 +222,6 @@ def administrar_view(request):
                 print("EXCEPCIÓN:", str(e))
                 messages.error(request, "Error en la conexión SSH.")
 
-            # Muestra el formulario con servicios disponibles sin redirigir
             return render(request, "administrar.html", {
                 "usuario": usuario,
                 "servidores": servidores,
@@ -232,7 +255,7 @@ def administrar_view(request):
                 print("EXCEPCIÓN:", str(e))
                 messages.error(request, "Fallo en la conexión SSH.")
 
-            return redirect("administrar")  # Solo redirigir después de ejecutar
+            return redirect("administrar")
 
     return render(request, "administrar.html", {
         "usuario": usuario,
@@ -243,6 +266,14 @@ def administrar_view(request):
 
 
 def estado_view(request):
+    """
+    Vista que permite consultar el estado de servicios en un servidor remoto.
+
+    - Verifica autenticación por sesión y OTP.
+    - Lista servidores disponibles desde la base de datos.
+    - Valida credenciales del servidor y conecta por SSH.
+    - Extrae información sobre los servicios y su estado actual.
+    """
     usuario = request.session.get("usuario")
     otp_verificado = request.session.get("authenticated")
 
@@ -298,8 +329,8 @@ def estado_view(request):
                         if len(partes) == 3:
                             resultados.append({
                                 "servicio": partes[0],
-                                "actividad": partes[1].lower(),  # e.g. active/inactive
-                                "estado": partes[2].lower()      # e.g. running/exited
+                                "actividad": partes[1].lower(),
+                                "estado": partes[2].lower()
                             })
                 else:
                     messages.error(request, "No se pudo obtener la lista de servicios del servidor.")
@@ -315,11 +346,18 @@ def estado_view(request):
         "servidor_seleccionado": servidor_seleccionado
     })
 
+
 def actualizar_servicios(request):
+    """
+    Endpoint usado por AJAX para actualizar el estado de servicios de un servidor remoto.
+
+    - Verifica credenciales enviadas por GET (ID de servidor y contraseña).
+    - Conecta por SSH y lista servicios activos/inactivos.
+    - Devuelve un JsonResponse con la información o errores.
+    """
     server_id = request.GET.get("server_id")
     password = request.GET.get("password")
 
-    # Replicamos validaciones y conexión
     try:
         db = MySQLdb.connect(
             host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
@@ -366,10 +404,16 @@ def actualizar_servicios(request):
 
 
 def levantar_view(request):
+    """
+    Vista que permite iniciar un servicio específico en un servidor remoto vía SSH.
+
+    - Verifica que el usuario esté autenticado con OTP.
+    - Valida existencia del servidor, contraseña y nombre del servicio.
+    - Ejecuta systemctl start remotamente mediante sshpass.
+    """
     usuario = request.session.get("usuario")  
     otp_verificado = request.session.get("authenticated")
 
-    # Si no hay sesión activa, redirigir al login
     if not usuario or not otp_verificado:
         request.session.flush()
         return redirect("index")
@@ -438,8 +482,15 @@ def levantar_view(request):
     })
 
 
-
 def registro_view(request):
+    """
+    Vista encargada de registrar un nuevo servidor en la base de datos.
+
+    - Verifica conectividad con el servidor (ping).
+    - Verifica credenciales SSH remotas.
+    - Comprueba que el nombre/IP no estén ya registrados.
+    - Hashea y guarda la contraseña en la base de datos de forma segura.
+    """
     usuario = request.session.get("usuario")  
     otp_verificado = request.session.get("authenticated")
 
@@ -453,12 +504,10 @@ def registro_view(request):
         usuario_ssh = request.POST["user"]
         password = request.POST.get("pass", "").strip()
 
-        # 1. Verificar conectividad con ping (desde el servidor Django)
         if subprocess.run(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL).returncode != 0:
             messages.error(request, "No se encontró el servidor")
             return redirect("registro")
 
-        # 2. Verificar credenciales SSH
         try:
             test = subprocess.run(
                 ["sshpass", "-p", password,
@@ -473,29 +522,24 @@ def registro_view(request):
             messages.error(request, "Error al conectar por SSH")
             return redirect("registro")
 
-        # 3. Conectarse a MySQL
         try:
             db = MySQLdb.connect(
                 host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
             )
             cursor = db.cursor()
 
-            # 4. Verificar si la IP ya está registrada
             cursor.execute("SELECT id FROM servidores WHERE ip = %s", [ip])
             if cursor.fetchone():
                 messages.error(request, "Servidor ya registrado con esa IP")
                 return redirect("registro")
 
-            # 4.1 Verificar si el nombre ya está registrado
             cursor.execute("SELECT id FROM servidores WHERE nombre = %s", [nombre])
             if cursor.fetchone():
                 messages.error(request, "Ya existe un servidor con ese nombre")
                 return redirect("registro")
 
-            # 5. Hashear contraseña con salt interno de Django
             password_hash = make_password(password)
 
-            # 6. Insertar en la base de datos
             cursor.execute("""
                 INSERT INTO servidores (nombre, ip, usuario, password_hash)
                 VALUES (%s, %s, %s, %s)
@@ -514,8 +558,13 @@ def registro_view(request):
     return render(request, "registro.html", {"usuario": usuario})
 
 
-#cerra sesion
+
 def logout_view(request):
-    logout(request)  # Cierra la sesión del usuario
-    request.session.flush()  # Elimina datos de sesión
-    return redirect("index")  # Redirige al login
+    """
+    Cierra la sesión del usuario y elimina los datos de la sesión activa.
+
+    :return: Redirección a la vista de inicio de sesión ('index').
+    """
+    logout(request)
+    request.session.flush()
+    return redirect("index")

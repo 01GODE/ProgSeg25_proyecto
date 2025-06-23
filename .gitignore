@@ -2,3 +2,6 @@
 .env*
 .env*
 .gitignore*
+venv
+*.crt
+*.key

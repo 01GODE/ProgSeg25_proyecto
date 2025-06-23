@@ -1,0 +1,50 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/estilos2.css' %}">
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+    <title>Index</title>
+</head>
+<body>
+    <div class="background">
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+    <form method="POST" action="{% url 'index' %}">
+    {% csrf_token %}
+    <h2>Inicio</h2>
+    <h3>Administración de Servidores</h3>
+
+    <label for="{{ form.username.id_for_label }}">Usuario</label>
+    {{ form.username }}
+
+    <label for="{{ form.password.id_for_label }}">Contraseña</label>
+    {{ form.password }}
+
+    <div class="captcha-container">
+    <span class="captcha-label">Ingresa Captcha:</span>
+    {{ form.captcha }}
+</div>
+
+</div>
+
+    <button type="submit">Entrar</button>
+
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+</form>
+
+</body>
+<script>
+    window.addEventListener("pageshow", function (event) {
+        if (event.persisted) {
+            location.reload();
+        }
+    });
+</script>
+</html>

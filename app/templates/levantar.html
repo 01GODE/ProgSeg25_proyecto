@@ -1,0 +1,60 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Levantar Servidor</title>
+ <body>   
+    <div class="header">
+        <h1>Administración de Servidores</h1>
+        <p>Bienvenido {{ usuario }}</p>
+    </div>
+    <div class="logout">
+        <a href="{% url 'logout' %}" style="color: white;">Cerrar Sesión</a>
+    </div>
+    <div class="back-button">
+    <form action="{% url 'inicio' %}" method="get">
+        <button type="submit">Regresar</button>
+    </form>
+    </div>
+
+    <div class="option">
+            <img src="{% static 'img/levantar.png' %}" alt="Levantar Servicio">
+            <p><b>Levantar Servicio</b></p>
+    </div>
+    <div class="container">
+        {% if messages %}
+            <ul class="mensajes">
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <form method="post" action="{% url 'levantar' %}">
+    {% csrf_token %}
+
+    <label for="server-name">Servidor:</label>
+    <select name="server-name" required>
+        <option value="" disabled selected>Selecciona un servidor</option>
+        {% for servidor in servidores %}
+            <option value="{{ servidor.id }}">{{ servidor.nombre }} ({{ servidor.ip }})</option>
+        {% endfor %}
+    </select>
+
+    <label for="pass_oculta">Contraseña:</label>
+    <input type="password" name="pass_oculta" placeholder="Ingresa contraseña" pattern="[A-Za-z0-9_?\.]{1,50}" title="Solo letras y números" required>
+
+    <label for="nombre-servicio">Nombre del Servicio a Levantar:</label>
+    <input type="text" name="nombre-servicio" placeholder="Nombre del servicio" pattern="[A-Za-z0-9_?\.]{1,50}" title="Solo letras y números" required>
+
+    <div class="button-container2">
+                <button type="submit" class="registrar-btn">Levantar Servicios</button>
+            </div>
+    </form>
+    </div>
+</body>
+</html>

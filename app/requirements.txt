@@ -1,0 +1,9 @@
+Django==5.2.3
+gunicorn
+mysqlclient
+django-simple-captcha
+python-dotenv
+requests
+pillow
+sqlparse
+pipx

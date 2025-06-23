@@ -15,23 +15,28 @@
         <div class="shape"></div>
     </div>
     <form method="POST" action="{% url 'index' %}">
-        {% csrf_token %}
-        <h2>Inicio</h2>
-        <h3>Administración de Servidores</h3>
+    {% csrf_token %}
+    <h2>Inicio</h2>
+    <h3>Administración de Servidores</h3>
 
-        <input type="hidden" name="next" value="{{ request.GET.next }}">
+    <label for="{{ form.username.id_for_label }}">Usuario</label>
+    {{ form.username }}
 
-        <label for="username">Usuario</label>
-        <input type="text" name="username" id="username" placeholder="usuario" required pattern="[A-Za-z0-9]{1,8}" title="Solo letras y números, máximo 8 caracteres">
+    <label for="{{ form.password.id_for_label }}">Contraseña</label>
+    {{ form.password }}
 
-        <label for="password">Contraseña</label>
-        <input type="password" name="password" id="password" placeholder="contraseña" required pattern="[A-Za-z0-9]{1,8}" title="Solo letras y números, máximo 8 caracteres">
+    <div class="captcha-container">
+    <span class="captcha-label">Ingresa Captcha:</span>
+    {{ form.captcha }}
+</div>
 
-        <button type="submit">Entrar</button>
+</div>
 
-        {% if error %}
+    <button type="submit">Entrar</button>
+
+    {% if error %}
         <p style="color: red;">{{ error }}</p>
-        {% endif %}
+    {% endif %}
 </form>
 
 </body>

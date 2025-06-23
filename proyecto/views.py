@@ -17,6 +17,7 @@ from django.http import JsonResponse
 from proyecto.models import LoginAttempt
 from proyecto.models import OTP
 from proyecto.utils import generate_otp, send_otp_email
+from .forms import LoginCaptchaForm
 
 
 load_dotenv()
@@ -54,63 +55,57 @@ def get_client_ip(request):
 
 
 def login_view(request):
-    """
-    Vista para gestionar el inicio de sesión de usuarios.
-
-    Valida credenciales y restringe intentos desde la misma IP.
-    Si el inicio es válido, genera y envía un OTP al correo del usuario.
-    """
     request.session.flush()
     if request.method == "POST":
-        username = request.POST["username"]
-        password = request.POST["password"]
-        client_ip = get_client_ip(request)
+        form = LoginCaptchaForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data["username"]
+            password = form.cleaned_data["password"]
+            client_ip = get_client_ip(request)
 
-        attempt, created = LoginAttempt.objects.get_or_create(ip=client_ip, username=username)
+            attempt, _ = LoginAttempt.objects.get_or_create(ip=client_ip, username=username)
+            time_since_last = (now() - attempt.last_attempt).total_seconds()
+            if attempt.attempts >= MAX_ATTEMPTS and time_since_last < LOCK_TIME:
+                return render(request, "index.html", {"form": form, "error": f"Demasiados intentos. Intenta en 30 segundos, quedan: {LOCK_TIME - time_since_last:.0f} segundos."})
 
-        time_since_last_attempt = (now() - attempt.last_attempt).total_seconds()
-        if attempt.attempts >= MAX_ATTEMPTS and time_since_last_attempt < LOCK_TIME:
-            return render(request, "index.html", {"error": f"Demasiados intentos. Intenta en 30 segundos, quedan: {LOCK_TIME - time_since_last_attempt:.0f} segundos."})
+            try:
+                db = MySQLdb.connect(host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT)
+                cursor = db.cursor()
+                cursor.execute("SELECT id, password, correo FROM usuarios WHERE username=%s", [username])
+                user_data = cursor.fetchone()
+                db.close()
 
-        try:
-            db = MySQLdb.connect(host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT)
-            cursor = db.cursor()
-            cursor.execute("SELECT id, password, correo FROM usuarios WHERE username=%s", [username])
-            user_data = cursor.fetchone()
-            db.close()
+                if user_data and check_password(password, user_data[1]):
+                    user_id, email = user_data[0], user_data[2]
+                    request.session["usuario"] = username
+                    request.session["user_id"] = user_id
+                    attempt.attempts = 0
+                    attempt.save()
 
-            if user_data and check_password(password, user_data[1]):
-                user_id, email = user_data[0], user_data[2]
+                    otp_code = generate_otp()
+                    otp_obj = OTP.objects.filter(user_id=user_id, is_used=False).first()
+                    if otp_obj:
+                        otp_obj.code = otp_code
+                        otp_obj.created_at = now()
+                        otp_obj.save()
+                    else:
+                        OTP.objects.create(user_id=user_id, code=otp_code, created_at=now(), is_used=False)
 
-                request.session["usuario"] = username
-                request.session["user_id"] = user_id
-                attempt.attempts = 0  
+                    send_otp_email(email, otp_code)
+                    request.session["otp_sent"] = True
+                    return redirect("verificacion")
+
+                attempt.attempts += 1
                 attempt.save()
+                return render(request, "index.html", {"form": form, "error": "Usuario o contraseña incorrectos."})
 
-                otp_code = generate_otp()
-
-                otp_existente = OTP.objects.filter(user_id=user_id, is_used=False).first()
-
-                if otp_existente:
-                    otp_existente.code = otp_code
-                    otp_existente.created_at = now()
-                    otp_existente.save()
-                else:
-                    OTP.objects.create(user_id=user_id, code=otp_code, created_at=now(), is_used=False)
-
-                send_otp_email(email, otp_code)
-                request.session["otp_sent"] = True   
-
-                return redirect("verificacion")
-
-            attempt.attempts += 1
-            attempt.save()
-            return render(request, "index.html", {"error": "Usuario o contraseña incorrectos."})
-
-        except MySQLdb.Error:
-            return render(request, "index.html", {"error": "Error al conectar con la base de datos."})
-
-    return render(request, "index.html")
+            except MySQLdb.Error:
+                return render(request, "index.html", {"form": form, "error": "Error de conexión con la base de datos."})
+        else:
+            return render(request, "index.html", {"form": form, "error": "Captcha inválido."})
+    else:
+        form = LoginCaptchaForm()
+    return render(request, "index.html", {"form": form})
 
 
 def verificacion_view(request):

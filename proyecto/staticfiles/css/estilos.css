@@ -221,6 +221,12 @@ ul.mensajes li.success {
     color: green;
 }
 
+.captcha-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 @media screen and (max-width: 768px) {
     .options {
         flex-direction: column;

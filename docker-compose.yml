@@ -12,8 +12,11 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
+    deploy:
+         resources:
+            limits:
+               cpus: "3"
+               memory: "1024M"
 
   django:
     build:
@@ -23,11 +26,17 @@ services:
     volumes:
       - ./app:/app
       - static_volume:/app/staticfiles
+      - ./logs:/app/proyecto/logs
     depends_on:
       - db
     expose:
       - "8000"
     user: "1000:1000"
+    deploy:
+         resources:
+            limits:
+               cpus: "3"
+               memory: "1024M"
 
   nginx:
     build:
@@ -40,6 +49,11 @@ services:
       - static_volume:/static
     depends_on:
       - django
+    deploy:
+         resources:
+            limits:
+               cpus: "3"
+               memory: "1024M"
 
 volumes:
   db_data:

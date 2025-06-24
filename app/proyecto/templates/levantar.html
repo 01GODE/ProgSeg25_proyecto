@@ -35,26 +35,24 @@
         {% endif %}
 
         <form method="post" action="{% url 'levantar' %}">
-    {% csrf_token %}
+            {% csrf_token %}
 
-    <label for="server-name">Servidor:</label>
-    <select name="server-name" required>
-        <option value="" disabled selected>Selecciona un servidor</option>
-        {% for servidor in servidores %}
-            <option value="{{ servidor.id }}">{{ servidor.nombre }} ({{ servidor.ip }})</option>
-        {% endfor %}
-    </select>
+            <label for="server-name">Servidor:</label>
+            <select name="server-name" required>
+                <option value="" disabled selected>Selecciona un servidor</option>
+                {% for servidor in servidores %}
+                    <option value="{{ servidor.id }}">{{ servidor.nombre }} ({{ servidor.ip }})</option>
+                {% endfor %}
+            </select>
 
-    <label for="pass_oculta">Contraseña:</label>
-    <input type="password" name="pass_oculta" placeholder="Ingresa contraseña" pattern="[A-Za-z0-9_?\.]{1,50}" title="Solo letras y números" required>
+            <label for="nombre-servicio">Nombre del Servicio a Levantar:</label>
+            <input type="text" name="nombre-servicio" placeholder="Nombre del servicio"
+                   pattern="[A-Za-z0-9_?\.]{1,50}" title="Solo letras y números" required>
 
-    <label for="nombre-servicio">Nombre del Servicio a Levantar:</label>
-    <input type="text" name="nombre-servicio" placeholder="Nombre del servicio" pattern="[A-Za-z0-9_?\.]{1,50}" title="Solo letras y números" required>
-
-    <div class="button-container2">
-                <button type="submit" class="registrar-btn">Levantar Servicios</button>
+            <div class="button-container2">
+                <button type="submit" class="registrar-btn">Levantar Servicio</button>
             </div>
-    </form>
+        </form>
     </div>
 </body>
 </html>

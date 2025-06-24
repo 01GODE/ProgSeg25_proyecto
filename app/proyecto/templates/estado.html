@@ -43,19 +43,13 @@
             <div class="form-group">
                 <label for="server-name">Selecciona Servidor:</label>
                 <select id="server-name" name="server-name" required>
-                
                     <option value="" disabled {% if not servidor_seleccionado %}selected{% endif %}>Selecciona un Servidor</option>
-                
                     {% for servidor in servidores %}
                         <option value="{{ servidor.id }}" {% if servidor_seleccionado and servidor.id == servidor_seleccionado.id %}selected{% endif %}>
                             {{ servidor.nombre }} ({{ servidor.ip }})
                         </option>
                     {% endfor %}
                 </select>
-            </div>
-            <div class="form-group">
-                <label for="pass_oculta">Contraseña del servidor:</label>
-                <input type="password" id="pass_oculta" name="pass_oculta" placeholder="Ingresa contraseña" value="{{ request.POST.pass_oculta }}" pattern="[A-Za-z0-9_?\.]{1,20}" title="Solo letras y números" required>
             </div>
             <div class="button-container2">
                 <button type="submit" class="registrar-btn">Ver Servicios</button>
@@ -90,7 +84,6 @@
     <script>
         const tablaBody = document.getElementById("tabla-servicios");
         const serverSelect = document.getElementById("server-name");
-        const passInput = document.getElementById("pass_oculta");
         const statusMensaje = document.getElementById("status-mensaje");
 
         let intervalo = null;
@@ -99,11 +92,9 @@
 
         function actualizarTabla() {
             const serverId = serverSelect.value;
-            const password = passInput.value;
+            if (!tablaBody || !serverId) return;
 
-            if (!tablaBody || !serverId || !password) return;
-
-            fetch(`/actualizar_servicios/?server_id=${serverId}&password=${encodeURIComponent(password)}`)
+            fetch(`/actualizar_servicios/?server_id=${serverId}`)
                 .then(resp => resp.json())
                 .then(data => {
                     if (!data.servicios) throw new Error("Sin servicios");

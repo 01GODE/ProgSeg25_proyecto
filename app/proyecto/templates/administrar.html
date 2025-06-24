@@ -37,47 +37,42 @@
         {% endif %}
         
         <form method="post" action="{% url 'administrar' %}">
-    {% csrf_token %}
-    <label for="server-name">Servidor:</label>
-    <select name="server-name" required>
-        <option value="" disabled {% if not servidor_seleccionado %}selected{% endif %}>Selecciona un servidor</option>
-        {% for servidor in servidores %}
-            <option value="{{ servidor.id }}"
-                {% if servidor.id|stringformat:"s" == servidor_seleccionado %}selected{% endif %}>
-                {{ servidor.nombre }} ({{ servidor.ip }})
-            </option>
-        {% endfor %}
-    </select>
+            {% csrf_token %}
+            <label for="server-name">Servidor:</label>
+            <select name="server-name" required>
+                <option value="" disabled {% if not servidor_seleccionado %}selected{% endif %}>Selecciona un servidor</option>
+                {% for servidor in servidores %}
+                    <option value="{{ servidor.id }}" {% if servidor.id|stringformat:"s" == servidor_seleccionado %}selected{% endif %}>
+                        {{ servidor.nombre }} ({{ servidor.ip }})
+                    </option>
+                {% endfor %}
+            </select>
 
-
-    <label for="pass_oculta">Contraseña:</label>
-    <input type="password" name="pass_oculta" placeholder="Ingresa contraseña" pattern="[A-Za-z0-9_?\.]{1,50}" title="Solo letras y números" required value="{{ pass_oculta }}">
-
-    <div class="button-container2">
+            <div class="button-container2">
                 <button type="submit" name="accion" value="verificar" class="registrar-btn">Cargar Servicios</button>
-    </div>
+            </div>
 
-    {% if servicios %}
-        <label for="service-name">Servicio:</label>
-        <select name="service-name" required>
-            <option value="" disabled selected>Selecciona un servicio</option>
-            {% for s in servicios %}
-                <option value="{{ s }}">{{ s }}</option>
-            {% endfor %}
-        </select>
+            {% if servicios %}
+                <label for="service-name">Servicio:</label>
+                <select name="service-name" required>
+                    <option value="" disabled selected>Selecciona un servicio</option>
+                    {% for s in servicios %}
+                        <option value="{{ s }}">{{ s }}</option>
+                    {% endfor %}
+                </select>
 
-        <label for="opcion">Acción:</label>
-        <select name="opcion" required>
-            <option value="" disabled selected>Selecciona una opcion</option>
-            <option value="Reiniciar">Reiniciar</option>
-            <option value="Dar de Baja">Dar de Baja</option>
-        </select>
+                <label for="opcion">Acción:</label>
+                <select name="opcion" required>
+                    <option value="" disabled selected>Selecciona una opcion</option>
+                    <option value="Reiniciar">Reiniciar</option>
+                    <option value="Dar de Baja">Dar de Baja</option>
+                </select>
 
-        <div class="button-container2">
-                <button type="submit" name="accion" value="ejecutar" class="registrar-btn">Aceptar</button>
-        </div>
-    {% endif %}
-    </form>
+                <div class="button-container2">
+                    <button type="submit" name="accion" value="ejecutar" class="registrar-btn">Aceptar</button>
+                </div>
+            {% endif %}
+        </form>
     </div>
 </body>
 </html>

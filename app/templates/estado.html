@@ -1,12 +1,11 @@
-{% load static %}
-<link rel="stylesheet" href="{% static 'css/estilos.css' %}">
-
 <!DOCTYPE html>
+{% load static %}
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estado del Servidor</title>
+    <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
 </head>
 <body>
     <div class="header">
@@ -44,7 +43,9 @@
             <div class="form-group">
                 <label for="server-name">Selecciona Servidor:</label>
                 <select id="server-name" name="server-name" required>
+                
                     <option value="" disabled {% if not servidor_seleccionado %}selected{% endif %}>Selecciona un Servidor</option>
+                
                     {% for servidor in servidores %}
                         <option value="{{ servidor.id }}" {% if servidor_seleccionado and servidor.id == servidor_seleccionado.id %}selected{% endif %}>
                             {{ servidor.nombre }} ({{ servidor.ip }})

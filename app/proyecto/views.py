@@ -55,6 +55,14 @@ def get_client_ip(request):
 
 
 def login_view(request):
+    """
+    Vista para gestionar el inicio de sesión con validación de captcha e intentos fallidos.
+
+    - Si el formulario es válido y las credenciales coinciden, se genera y envía un código OTP por correo.
+    - Si el usuario supera el número máximo de intentos fallidos dentro del intervalo bloqueado, se muestra un mensaje de espera.
+    - En caso de error de autenticación, conexión con la base de datos o captcha inválido, se muestra el mensaje correspondiente.
+    - Limpia la sesión al inicio para evitar conflictos de sesión anteriores.
+    """
     request.session.flush()
     if request.method == "POST":
         form = LoginCaptchaForm(request.POST)
@@ -111,11 +119,11 @@ def login_view(request):
 def verificacion_view(request):
     """
     Vista para verificar el código OTP tras login.
-
     Si el código es válido, habilita acceso y redirige a 'inicio'.
+    Si es inválido, redirige a 'index' con un mensaje de error.
     """
     usuario = request.session.get("usuario")
-    user_id = request.session.get("user_id")  
+    user_id = request.session.get("user_id")
 
     if not usuario or not user_id:
         return redirect("index")
@@ -128,10 +136,12 @@ def verificacion_view(request):
         if otp and not otp.is_expired():
             otp.is_used = True
             otp.save()
-            request.session["authenticated"] = True  
+            request.session["authenticated"] = True
             return redirect("inicio")
-        return render(request, "verificacion.html", {"error": "El codigo es incorrecto"})
-    
+        else:
+            messages.error(request, "Código inválido")
+            return redirect("index")
+
     return render(request, "verificacion.html")
 
 

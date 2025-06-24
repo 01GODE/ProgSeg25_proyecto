@@ -8,6 +8,12 @@ WORKDIR /app
 COPY ./app /app
 
 RUN apt-get update && apt-get install -y \
+    iputils-ping \
+    openssh-client \
+    sshpass \
+    gawk \
+    grep \
+    coreutils \
     gcc \
     default-libmysqlclient-dev \
     pkg-config \
@@ -15,6 +21,7 @@ RUN apt-get update && apt-get install -y \
  && pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt
 
+RUN useradd -m -u 1000 debian
 USER debian
 
 CMD ["gunicorn", "proyecto.wsgi:application", "--bind", "0.0.0.0:8000"]

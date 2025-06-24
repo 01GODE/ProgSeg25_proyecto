@@ -37,6 +37,13 @@
     {% if error %}
         <p style="color: red;">{{ error }}</p>
     {% endif %}
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
 </form>
 
 </body>

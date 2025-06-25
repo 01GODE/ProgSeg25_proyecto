@@ -1,5 +1,6 @@
 import random
 import os
+import secrets
 from django.core.mail import send_mail
 from dotenv import load_dotenv
 from datetime import datetime
@@ -7,9 +8,9 @@ from datetime import datetime
 load_dotenv()
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 
+
 def generate_otp():
-    #Genera un código OTP de 6 dígitos
-    return str(random.randint(100000, 999999))
+    return str(secrets.randbelow(900000) + 100000)
 
 def send_otp_email(email, otp):
     send_mail(

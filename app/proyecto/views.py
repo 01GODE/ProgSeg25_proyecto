@@ -24,6 +24,10 @@ DB_PORT = int(os.getenv("DB_PORT"))
 MAX_ATTEMPTS = 3
 LOCK_TIME = 10
 
+CONSULTA_SERVIDORES = "SELECT id, nombre, ip, usuario FROM servidores"
+SSH_OPCIONES = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no"]
+
+
 
 def index(request):
     """
@@ -46,6 +50,7 @@ def get_client_ip(request):
         return x_forwarded_for.split(",")[0]
     return request.META.get("REMOTE_ADDR")
 
+# Se requiere GET para mostrar el formulario y POST para procesar el login.
 @require_http_methods(["GET", "POST"])
 def login_view(request):
     """
@@ -183,7 +188,7 @@ def administrar_view(request):
             host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
         )
         cursor = db.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute("SELECT id, nombre, ip, usuario FROM servidores")
+        cursor.execute(CONSULTA_SERVIDORES)
         servidores = cursor.fetchall()
         cursor.close()
         db.close()
@@ -207,7 +212,7 @@ def administrar_view(request):
             )
             try:
                 resultado = subprocess.run(
-                    ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no",
+                    ["ssh", *SSH_OPCIONES,
                      f"{servidor['usuario']}@{servidor['ip']}", comando],
                     capture_output=True, text=True, timeout=10
                 )
@@ -218,7 +223,7 @@ def administrar_view(request):
                 else:
                     messages.error(request, "Fallo al obtener servicios del servidor.")
             except Exception as e:
-                messages.error(request, f"Error en la conexión SSH: {e}")
+                messages.error(request, f"Error en la conexión SSH:")
 
             return render(request, "administrar.html", {
                 "usuario": usuario,
@@ -237,7 +242,7 @@ def administrar_view(request):
             cmd = f"sudo systemctl {'restart' if opcion == 'Reiniciar' else 'stop'} {servicio}.service"
             try:
                 resultado = subprocess.run(
-                    ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no",
+                    ["ssh", *SSH_OPCIONES,
                      f"{servidor['usuario']}@{servidor['ip']}", cmd],
                     capture_output=True, text=True, timeout=10
                 )
@@ -246,7 +251,7 @@ def administrar_view(request):
                 else:
                     messages.error(request, "Fallo al ejecutar la operación.")
             except Exception as e:
-                messages.error(request, f"Error en la conexión SSH: {e}")
+                messages.error(request, f"Error en la conexión SSH:")
 
             return redirect("administrar")
 
@@ -283,7 +288,7 @@ def estado_view(request):
             host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
         )
         cursor = db.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute("SELECT id, nombre, ip, usuario FROM servidores")
+        cursor.execute(CONSULTA_SERVIDORES)
         servidores = cursor.fetchall()
         cursor.close()
         db.close()
@@ -304,7 +309,7 @@ def estado_view(request):
 
             try:
                 resultado = subprocess.run(
-                    ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no",
+                    ["ssh", *SSH_OPCIONES,
                      f"{servidor_seleccionado['usuario']}@{servidor_seleccionado['ip']}",
                      comando],
                     capture_output=True, text=True, timeout=10
@@ -322,7 +327,7 @@ def estado_view(request):
                 else:
                     messages.error(request, "No se pudo obtener la lista de servicios del servidor.")
             except Exception as e:
-                messages.error(request, f"Error en la conexión SSH: {e}")
+                messages.error(request, f"Error en la conexión SSH:")
         else:
             messages.error(request, "Servidor no encontrado.")
 
@@ -350,7 +355,7 @@ def actualizar_servicios(request):
             host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
         )
         cursor = db.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute("SELECT id, nombre, ip, usuario FROM servidores")
+        cursor.execute(CONSULTA_SERVIDORES)
         servidores = cursor.fetchall()
         cursor.close()
         db.close()
@@ -369,7 +374,7 @@ def actualizar_servicios(request):
 
     try:
         resultado = subprocess.run(
-            ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no",
+            ["ssh", *SSH_OPCIONES,
              f"{servidor['usuario']}@{servidor['ip']}", comando],
             capture_output=True, text=True, timeout=10
         )
@@ -389,7 +394,7 @@ def actualizar_servicios(request):
 
         return JsonResponse({"servicios": servicios})
     except Exception as e:
-        return JsonResponse({"error": f"Fallo SSH: {str(e)}"}, status=500)
+        return JsonResponse({"error": f"Fallo SSH:"}, status=500)
 
 
 @require_http_methods(["GET", "POST"])
@@ -413,7 +418,7 @@ def levantar_view(request):
             host=DB_HOST, user=DB_USER, passwd=DB_PASSWORD, db=DB_NAME, port=DB_PORT
         )
         cursor = db.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute("SELECT id, nombre, ip, usuario FROM servidores")
+        cursor.execute(CONSULTA_SERVIDORES)
         servidores = cursor.fetchall()
         cursor.close()
         db.close()
@@ -439,7 +444,7 @@ def levantar_view(request):
 
         try:
             resultado = subprocess.run(
-                ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no",
+                ["ssh", *SSH_OPCIONES,
                  f"{servidor['usuario']}@{servidor['ip']}", comando],
                 capture_output=True, text=True, timeout=10
             )
@@ -453,7 +458,7 @@ def levantar_view(request):
                 else:
                     messages.error(request, f"Error al intentar levantar el servicio: {stderr}")
         except Exception as e:
-            messages.error(request, f"No se pudo conectar con el servidor: {str(e)}")
+            messages.error(request, f"No se pudo conectar con el servidor:")
 
         return redirect("levantar")
 
@@ -495,7 +500,7 @@ def registro_view(request):
 
         try:
             resultado = subprocess.run(
-                ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no",
+                ["ssh", *SSH_OPCIONES,
                  f"{usuario_ssh}@{ip}", "echo conectado"],
                 capture_output=True, text=True, timeout=5
             )
@@ -503,7 +508,7 @@ def registro_view(request):
                 messages.error(request, "Conexión SSH fallida. Verifica si has instalado la clave pública.")
                 return redirect("registro")
         except Exception as e:
-            messages.error(request, f"No se pudo conectar por SSH: {str(e)}")
+            messages.error(request, f"No se pudo conectar por SSH:")
             return redirect("registro")
 
         try:
@@ -540,7 +545,7 @@ def registro_view(request):
 
     return render(request, "registro.html", {"usuario": usuario})
 
-
+@require_http_methods(["GET", "POST"])
 def logout_view(request):
     """
     Cierra la sesión del usuario y elimina los datos de la sesión activa.

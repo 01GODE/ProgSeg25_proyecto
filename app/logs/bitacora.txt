@@ -1,2 +1,7 @@
 [24-06-2025 23:07:29] admini - 172.19.0.1 - Intento fallido de inicio de sesión | Usuario o contraseña incorrectos.
 [24-06-2025 23:07:56] admin - 172.19.0.1 -  Inicio de sesión exitoso | OTP verificado con éxito
+[25-06-2025 05:00:46] localhost - 172.18.0.1 - Intento fallido de inicio de sesión | Usuario o contraseña incorrectos.
+[25-06-2025 05:04:57] admin - 172.18.0.1 -  Inicio de sesión exitoso | OTP verificado con éxito
+[25-06-2025 05:27:25] admin - 172.18.0.1 -  Inicio de sesión exitoso | OTP verificado con éxito
+[25-06-2025 06:20:38] admin - 127.0.0.1 -  Inicio de sesión exitoso | OTP verificado con éxito
+[25-06-2025 06:38:58] admin - 127.0.0.1 -  Inicio de sesión exitoso | OTP verificado con éxito

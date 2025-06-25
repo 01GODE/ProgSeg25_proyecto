@@ -5,3 +5,4 @@
 venv
 *.crt
 *.key
+script.sh
